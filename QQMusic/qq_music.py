@@ -88,7 +88,7 @@ class QQMusicSpider:
                 except Exception as e:
                     print(f"下载失败！{e.args}")
             else:
-                print("该音乐已存在，不用重复下载！")
+                print("该音乐已存在，不用重复下载！！")
 
 
 if __name__ == '__main__':
