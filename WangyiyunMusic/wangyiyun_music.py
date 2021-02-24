@@ -132,7 +132,7 @@ class WangYiYunMusic(object):
         return info_list
 
     def save_file(self, song_text, download_info):
-        filepath = './download'
+        filepath = '../download'
         if not os.path.exists(filepath):
             os.mkdir(filepath)
         filename = download_info[1] + '-' + download_info[2]
@@ -144,7 +144,7 @@ class WangYiYunMusic(object):
                 f.write(response.content)
                 print("下载完毕!")
         else:
-            print("下载失败~下载链接解析失败")
+            print("不好意思，这首歌级别有点高，暂时下载不下来~换一首试试")
 
 
 if __name__ == '__main__':

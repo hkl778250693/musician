@@ -67,7 +67,7 @@ class QQMusicSpider:
         global video_num_total
         try:
             self.item['music_content'] = response.content
-            dir_path = os.path.join("F:/", "QQmusic")
+            dir_path = os.path.join("F:/", "")
             if not os.path.exists(dir_path):
                 os.makedirs(dir_path, mode=0o777)
                 print(f"成功创建dir_path:{dir_path}")

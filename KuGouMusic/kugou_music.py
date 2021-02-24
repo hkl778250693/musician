@@ -102,17 +102,21 @@ class KuGouMusic(object):
         return hash_list
 
     def save_file(self, song_text):
-        filepath = './download'
+        filepath = '../download'
         if not os.path.exists(filepath):
             os.mkdir(filepath)
         text = json.loads(song_text)['data']
         audio_name = text['audio_name']
+        print(f"audio_name:{audio_name}")
         author_name = text['author_name']
         album_name = text['album_name']
         img_url = text['img']
         lyrics = text['lyrics']
         play_url = text['play_url']
         print(f"play_url:{play_url}")
+        if not play_url:
+            print("不好意思，这首歌级别有点高，暂时下载不下来~换一首试试")
+            return None
         response = requests.get(play_url, headers=self.headers)
         with open(os.path.join(filepath, audio_name) + '.mp3', 'wb') as f:
             f.write(response.content)
