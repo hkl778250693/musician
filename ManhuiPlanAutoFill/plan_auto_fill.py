@@ -21,11 +21,12 @@ import os
 from logger_utils import *
 import random
 from urllib.parse import quote, urlencode
+from pprint import pprint
+from datetime import datetime, timedelta
 
 plan_content = {
-    "remark": "已完成                 "          # 计划说明内容，自行修改
+    "remark": "已完成           "          # 计划说明内容，自行修改
 }
-
 
 driver_path = "./chromedriver_88.exe"
 chrome_options = webdriver.ChromeOptions()
@@ -62,6 +63,11 @@ class LoginUtils:
         self.cookies_tmp_path = os.path.join(os.getcwd(), "cookies_tmp.txt")
         self.is_login_success = False
         self.item = {}
+        self.break_while = False
+        now = datetime.today()
+        self.delta_time = now + timedelta(days=1.0)
+        self.tomorrow_time = self.delta_time.strftime("%Y-%m-%d")
+        self.current_date = time.strftime("%Y-%m-%d", time.localtime())
 
     # 登陆满惠
     def login(self):
@@ -88,9 +94,9 @@ class LoginUtils:
         while True:
             try:
                 ele = self.browser.find_element_by_xpath("//input[@name='username']")
-                print(ele)
+                # print(ele)
                 count += 1
-                print(f"登陆检测控件循环次数：{count}")
+                # print(f"登陆检测控件循环次数：{count}")
             except NoSuchElementException:
                 self.is_login_success = True
                 self.logger.info(f"登陆成功~")
@@ -98,7 +104,7 @@ class LoginUtils:
                 self.browser.close()
                 break
             else:
-                if count == 50:
+                if count == 500:
                     self.logger.info(f"登陆失败，检测一哈网络嘛~")
 
         if self.is_login_success:
@@ -123,6 +129,9 @@ class LoginUtils:
         url = "http://www.manhuicloud.com/plan/stagingPlan/going"
         page = 0
         while True:
+            if self.break_while:
+                self.logger.info("退出while循环")
+                break
             payload = {
                 "pageIndex": str(page),
                 "pageSize": "10",
@@ -144,29 +153,51 @@ class LoginUtils:
                 "yearMonth": "",
                 "dateType": "2",
                 "key": "",
-                "executive": "袁洪",
+                "executive": "刘博",
                 "responsible": ""
             }
             response = self.session.post(url, data=payload)
-            print(response.text)
+            # print(response.text)
             json_data = response.json()
-            print(f"获取到{json_data['total']}条进行时计划")
-            if json_data["total"] == "0":
-                print("没有数据，退出while循环")
-                break
+            self.logger.info(f"获取到{json_data['total']}条进行时计划")
+
+            plan_list = json_data["data"]
+            if len(plan_list) == 0:
+                print("没有获取到计划列表")
+                return
+            for plan in plan_list:
+                self.item["plan_id"] = plan["id"]  # 计划id
+                self.item["node_name"] = plan["nodeName"]  # 节点名称
+                self.item["date"] = plan["endDate"]  # 填写日期
+
+                # (planType=2 年度计划)   (planType=3 月度计划)   (planType=4 日常计划)   (planType=5 临时计划)
+                if plan["state"] == "2" and plan["planType"] == "4":
+                    self.logger.info(f"获取到日常计划:{plan}")
+                    self.submit_plan()
+                elif plan["state"] == "2" and plan["planType"] == "5":
+                    self.logger.info("获取到临时计划")
+                    if self.current_date == self.item["date"]:
+                        self.logger.info("该临时计划今天需要填报")
+                        self.submit_plan()
+                    else:
+                        self.logger.info("该临时计划今天不需要填报")
+                elif plan["state"] == "2" and plan["planType"] == "3":
+                    self.logger.info("获取到月度计划")
+                    if self.current_date == self.item["date"]:
+                        self.logger.info("该月度计划今天需要填报")
+                        self.submit_month_plan()
+                    else:
+                        self.logger.info("该月度计划今天不需要填报")
+                else:
+                    if self.tomorrow_time == plan["beginDate"]:
+                        # 获取到第二天的日常计划，则退出循环
+                        self.logger.info("获取到第二天的日常计划，当天日常计划已获取完")
+                        self.break_while = True
+                        break
             # 翻页
             page += 1
-            plan_list = json_data["data"]
-            for plan in plan_list:
-                # (planType=3 月度计划)   (planType=4 日常计划)
-                if plan["state"] == "2" and plan["planType"] == "4":
-                    self.item["plan_id"] = plan["id"]  # 计划id
-                    self.item["node_name"] = plan["nodeName"]  # 节点名称
-                    self.item["date"] = plan["beginDate"]  # 填写日期
-                    if plan["id"] == "988266":   # 此处用来测试提交一条计划，如果没问题，则删除判断
-                        self.submit_plan()
 
-    # 提交计划
+    # 提交日常、临时计划
     def submit_plan(self):
         url = "http://www.manhuicloud.com/plan/monthlyPlanExecution/saveKeyFruitArchives"
         payload = {
@@ -185,13 +216,13 @@ class LoginUtils:
                     "fileName": "",
                     "id": self.item['plan_id'],
                     "completeDate": self.item["date"],
-                    "remark": plan_content["remark"]      # 计划说明内容自己改
+                    "remark": self.item["node_name"] + plan_content["remark"]      # 计划说明内容自己改
                 }
             }
         }
-        print(payload)
+        # print(payload)
         response = self.session.post(url, data=urlencode(payload))
-        print(response.text)
+        # print(response.text)
         if response.json()["code"] == "200":
             print(f"{self.item['node_name']}---计划保存成功~")
             current_time = int(time.time() * 1000)
@@ -204,6 +235,68 @@ class LoginUtils:
                 print(f"{self.item['node_name']}---计划上传失败~")
         else:
             print(f"{self.item['node_name']}---计划保存失败~")
+
+    # 提交月度计划
+    def submit_month_plan(self):
+        # 获取oa_id
+        url1 = "http://www.manhuicloud.com/plan/loggerService/getWorkFolw"
+        payload1 = {
+            "formSign": "CDJHGLJHZXCGTB_01"
+        }
+        res1_data = self.session.post(url1, data=urlencode(payload1)).json()
+        self.item["oa_id"] = res1_data['data'][0]['id']
+        print(f"oa_id:{self.item['oa_id']}")
+
+        # 提交月度计划内容
+        url2 = "http://www.manhuicloud.com/plan/monthlyPlanExecution/saveKeyFruitArchives"
+        payload2 = {
+            "data": {
+                "detailinfos": [],
+                "planNode": {
+                    "nodeNames": self.item["node_name"],
+                    "isComplete": "1",
+                    "rate": "100",
+                    "expectDate": "",
+                    "overDate": self.item["date"],
+                    "planType": "3",
+                    "newPlanflag": "0",
+                    "releaseManager": "",
+                    "fileUrl": "",
+                    "fileName": "",
+                    "id": self.item['plan_id'],
+                    "completeDate": self.item["date"],
+                    "remark": self.item["node_name"] + plan_content["remark"]      # 计划说明内容自己改
+                }
+            }
+        }
+        res2_data = self.session.post(url2, data=urlencode(payload2)).json()
+        if res2_data["code"] == "200":
+            print(f"{self.item['node_name']}---月度计划保存成功~准备提交流程")
+            # 提交流程
+            url3 = "http://www.manhuicloud.com/plan/loggerService/startPost"
+            payload3 = {
+                "id": res2_data['message'],
+                "formSign": "CDJHGLJHZXCGTB_01",
+                "workFlowId": "MHFGS_JHTBSQ",
+                "jumpUrl": f"/program/monthlyPlan/workflow.html?id={res2_data['message']}",
+                "url": "/act/taskApi/start",
+                "exampleEntity": "planNode",
+                "nodeTypeNum": "",
+                "nodePropertyNum": "2",
+                "roleId": self.item["oa_id"]
+            }
+            res3_data = self.session.post(url3, data=urlencode(payload3)).json()
+            if res3_data["code"] == "200":
+                print("流程提交成功，准备确认流程是否已提交审核")
+                current_time = int(time.time() * 1000)
+                url4 = f"http://www.manhuicloud.com/plan/monthlyPlanExecution/audit?id={int(res2_data['message'])}&_={current_time}"
+                res4_data = self.session.get(url4).json()
+                if res4_data["code"] == "200":
+                    print(f"{self.item['node_name']}---月度计划已经提交审核~")
+                else:
+                    print(f"{self.item['node_name']}---月度计划未成功提交审核~")
+        else:
+            print(f"{self.item['node_name']}---月度计划保存失败~")
 
 
 if __name__ == '__main__':
