@@ -67,6 +67,7 @@ class LoginUtils:
         now = datetime.today()
         self.delta_time = now + timedelta(days=1.0)
         self.tomorrow_time = self.delta_time.strftime("%Y-%m-%d")
+        self.next_time = (now + timedelta(days=3.0)).strftime("%Y-%m-%d")
         self.current_date = time.strftime("%Y-%m-%d", time.localtime())
 
     # 登陆满惠
@@ -143,19 +144,19 @@ class LoginUtils:
                 "dateType": "2"
             }
             # 根据执行人筛选的时候提交的表单
-            filter_payload = {
-                "pageIndex": str(page),
-                "pageSize": "10",
-                "nodeName": "",
-                "nodePropertyId": "",
-                "nodeTypeId": "",
-                "itemId": "",
-                "yearMonth": "",
-                "dateType": "2",
-                "key": "",
-                "executive": "刘博",
-                "responsible": ""
-            }
+            # filter_payload = {
+            #     "pageIndex": str(page),
+            #     "pageSize": "10",
+            #     "nodeName": "",
+            #     "nodePropertyId": "",
+            #     "nodeTypeId": "",
+            #     "itemId": "",
+            #     "yearMonth": "",
+            #     "dateType": "2",
+            #     "key": "",
+            #     "executive": "刘博",
+            #     "responsible": ""
+            # }
             response = self.session.post(url, data=payload)
             # print(response.text)
             json_data = response.json()
@@ -189,9 +190,9 @@ class LoginUtils:
                     else:
                         self.logger.info("该月度计划今天不需要填报")
                 else:
-                    if self.tomorrow_time == plan["beginDate"]:
+                    if self.tomorrow_time == plan["beginDate"] or self.next_time == plan["beginDate"]:
                         # 获取到第二天的日常计划，则退出循环
-                        self.logger.info("获取到第二天的日常计划，当天日常计划已获取完")
+                        self.logger.info("获取到下一次的日常计划，当天计划已填报完")
                         self.break_while = True
                         break
             # 翻页
@@ -239,12 +240,9 @@ class LoginUtils:
     # 提交月度计划
     def submit_month_plan(self):
         # 获取oa_id
-        url1 = "http://www.manhuicloud.com/plan/loggerService/getWorkFolw"
-        payload1 = {
-            "formSign": "CDJHGLJHZXCGTB_01"
-        }
-        res1_data = self.session.post(url1, data=urlencode(payload1)).json()
-        self.item["oa_id"] = res1_data['data'][0]['id']
+        url1 = f"http://www.manhuicloud.com/plan/post/getPostByPlanNodeId?planNodeId={self.item['plan_id']}"
+        res1_data = self.session.post(url1).json()
+        self.item["oa_id"] = res1_data['body'][0]['oaId']
         print(f"oa_id:{self.item['oa_id']}")
 
         # 提交月度计划内容
