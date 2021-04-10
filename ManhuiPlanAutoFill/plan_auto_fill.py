@@ -165,7 +165,7 @@ class LoginUtils:
             plan_list = json_data["data"]
             if len(plan_list) == 0:
                 print("没有获取到计划列表")
-                return
+                break
             for plan in plan_list:
                 self.item["plan_id"] = plan["id"]  # 计划id
                 self.item["node_name"] = plan["nodeName"]  # 节点名称
@@ -200,6 +200,7 @@ class LoginUtils:
 
     # 提交日常、临时计划
     def submit_plan(self):
+        time.sleep(10)
         url = "http://www.manhuicloud.com/plan/monthlyPlanExecution/saveKeyFruitArchives"
         payload = {
             "data": {
@@ -239,6 +240,7 @@ class LoginUtils:
 
     # 提交月度计划
     def submit_month_plan(self):
+        time.sleep(10)
         # 获取oa_id
         url1 = f"http://www.manhuicloud.com/plan/post/getPostByPlanNodeId?planNodeId={self.item['plan_id']}"
         res1_data = self.session.post(url1).json()
