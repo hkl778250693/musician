@@ -48,7 +48,7 @@ def main():
         "opt_type": 3,
         "offset": 0,
         "count": 20,
-        "list_id": "giekze4cbf_2706",
+        "list_id": "os7p1dirp9_2706",
         "anti_content": get_anti_content()
     }
 
